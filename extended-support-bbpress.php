@@ -197,6 +197,12 @@ class BBP_API_MAIN  {
                 $forum_id = wp_get_post_parent_id( get_the_ID() );
                 $topic_author_un = get_the_author();
                 $authordata = get_user_by( 'login', $topic_author_un );
+		$meta_resolution = get_post_meta(get_the_ID(), 'bbr_topic_resolution');
+		if(count($meta_resolution)> 0 && $meta_resolution[0] == "3") {
+			$meta_resolution = true;
+		} else { 
+			$meta_resolution = false; 
+		}    
                 
 				//Last replay of topic
 				$last_replay_date = '';
@@ -240,6 +246,7 @@ class BBP_API_MAIN  {
                     'id' => get_the_ID(),
                     'title' => get_the_title(),
                     'created_at' => get_the_date('Y-m-d H:i:s'),
+		    'resolved' => $meta_resolution,
                     'forum_id' => $forum_id,
                     'forum_name' => get_the_title($forum_id),
                     'forum_url' => get_the_permalink($forum_id),
