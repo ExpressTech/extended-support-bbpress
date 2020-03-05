@@ -3,7 +3,7 @@
 Plugin Name: Extended Support functionality for bbPress
 Plugin URI: https://expresstech.io/
 Description: BBPress Extended Support
-Version: 1.1.0
+Version: 1.1.1
 Author: Wpwave
 Author URI: https://expresstech.io/
 License: GPLv2 or later
