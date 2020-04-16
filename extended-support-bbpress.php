@@ -21,7 +21,8 @@ class BBP_API_MAIN  {
     
     public function bes_show_data(){
         if(current_user_can('moderate')){
-            $url = get_option('esb_url', '') . "/edd-api/sales/";
+            $site_url = get_option('esb_url', '');
+            $url = trailingslashit($site_url) . "/edd-api/sales/";
             // echo $url;exit;
             $esb_api_key = get_option('esb_api_key', '');
             $esb_hash = get_option('esb_hash', '');
@@ -50,8 +51,9 @@ class BBP_API_MAIN  {
                     echo "<h1>License Information</h1>";
                     foreach ($body->sales as $sale) {
                             // var_dump($sale);
+                            $payment_link = trailingslashit($site_url).'wp-admin/edit.php?post_type=download&page=edd-payment-history&view=view-order-details&id='.$sale->ID;
                             echo "<div class='esb-license-info'>";
-                            echo "<p>ID: {$sale->ID}</p>";
+                            echo "<p>ID: <a href='{$payment_link}'>{$sale->ID}</a></p>";
                             echo "<p>Customer ID: {$sale->customer_id}</p>";
                             echo "<p>Date of Purchase: {$sale->date}</p>";
 
@@ -61,8 +63,8 @@ class BBP_API_MAIN  {
                                     echo "<p>{$product->name} ({$product->price_name})</p>";
                             }
                             echo "<p><strong>Licenses:</strong></p>";
-
-                            foreach ($sale->licenses as $license) {
+                            if (!empty($sale->licenses)) {
+                                foreach ($sale->licenses as $license) {
                                     echo "<p>{$license->name}</p>";
                                     $color = "gray";
                                     if($license->status == 'expired') {
@@ -71,6 +73,7 @@ class BBP_API_MAIN  {
                                             $color = "green";
                                     }
                                     echo "<p >Status: <span style='color:$color'> {$license->status}</span></p>";
+                                }
                             }
 
                             echo "</div>";
