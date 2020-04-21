@@ -33,7 +33,7 @@ class BBP_API_MAIN {
 				foreach ($body->sales as $sale) {
 					$payment_link = trailingslashit($site_url) . 'wp-admin/edit.php?post_type=download&page=edd-payment-history&view=view-order-details&id=' . $sale->ID;
 					echo "<div class='esb-license-info'>";
-					echo "<p>ID: <a href='{$payment_link}'>{$sale->ID}</a></p>";
+					echo "<p>ID: <a href='{$payment_link}' target='_blank'>{$sale->ID}</a></p>";
 					echo "<p>Customer ID: {$sale->customer_id}</p>";
 					echo "<p>Date of Purchase: {$sale->date}</p>";
 					echo "<p><strong>Products:</strong></p>";
@@ -63,62 +63,69 @@ class BBP_API_MAIN {
 		$license_text = '';
 		$reply_id = bbp_get_reply_id();
 		$email = bbp_get_reply_author_email($reply_id);
-		$api_res = $this->api_call($email);
-		if (!empty($api_res)) {
-			$sales = $api_res->sales;
-			$license_statuses = array();
-			$active = $inactive = $expired = $disabled = 0;
-			if (!empty($sales)) {
-				foreach ($sales as $sale) {
-					$saleuser = get_user_by('email', $sale->email);
-					if (bbp_is_user_keymaster($saleuser->ID)) {
-						return;
-					}
-					if (!empty($sale->licenses)) {
-						foreach ($sale->licenses as $license) {
-							$license_statuses[] = $license->status;
-							switch ($license->status) {
-								case 'active':
-									$active++;
-									break;
-								case 'expired':
-									$expired++;
-									break;
-								case 'inactive':
-									$inactive++;
-									break;
-								default:
-									$disabled++;
-									break;
+		$cookie_name = "license-status-". md5($email);
+		if (isset($_COOKIE[$cookie_name])) {
+			$license_text = stripslashes($_COOKIE[$cookie_name]);
+		} else {
+			$api_res = $this->api_call($email);
+			if (!empty($api_res)) {
+				$sales = $api_res->sales;
+				$license_statuses = array();
+				$active = $inactive = $expired = $disabled = 0;
+				if (!empty($sales)) {
+					foreach ($sales as $sale) {
+						$saleuser = get_user_by('email', $sale->email);
+						if (bbp_is_user_keymaster($saleuser->ID)) {
+							return;
+						}
+						if (!empty($sale->licenses)) {
+							foreach ($sale->licenses as $license) {
+								$license_statuses[] = $license->status;
+								switch ($license->status) {
+									case 'active':
+										$active++;
+										break;
+									case 'expired':
+										$expired++;
+										break;
+									case 'inactive':
+										$inactive++;
+										break;
+									default:
+										$disabled++;
+										break;
+								}
 							}
 						}
 					}
-				}
-				if (count($license_statuses) > 0) {
-					$final_status = '';
-					$color = 'gray';
-					if ($active == count($license_statuses)) {
-						$final_status = 'Active';
-						$color = 'green';
-					} elseif ($inactive == count($license_statuses)) {
-						$final_status = 'Inacive';
-						$color = 'orange';
-					} elseif ($expired == count($license_statuses)) {
-						$final_status = 'Expired';
-						$color = 'red';
-					} elseif ($disabled == count($license_statuses)) {
-						$final_status = 'Disabled';
-					} else {
-						$final_status = 'Mixed';
-						$color = 'green';
+					if (count($license_statuses) > 0) {
+						$final_status = '';
+						$color = 'gray';
+						if ($active == count($license_statuses)) {
+							$final_status = 'Active';
+							$color = 'green';
+						} elseif ($inactive == count($license_statuses)) {
+							$final_status = 'Inacive';
+							$color = 'orange';
+						} elseif ($expired == count($license_statuses)) {
+							$final_status = 'Expired';
+							$color = 'red';
+						} elseif ($disabled == count($license_statuses)) {
+							$final_status = 'Disabled';
+						} else {
+							$final_status = 'Mixed';
+							$color = 'green';
+						}
+						$final_status_sm = strtolower($final_status);
+						$license_text = "<div class='license-status-wrapper'>";
+						$license_text .= "<span>License Status: </span>";
+						$license_text .= "<span class='{$final_status_sm}' style='color:{$color}'>{$final_status}</span>";
+						$license_text .= "</div>";
+
 					}
-					$final_status_sm = strtolower($final_status);
-					$license_text = "<div class='license-status-wrapper' style='white-space: nowrap;'>";
-					$license_text .= "<span>License Status: </span>";
-					$license_text .= "<span class='{$final_status_sm}' style='color:{$color}'>{$final_status}</span>";
-					$license_text .= "</div>";
 				}
 			}
+			setcookie($cookie_name, stripslashes($license_text), time() + (86400), "/");
 		}
 		echo $license_text;
 	}
