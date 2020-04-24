@@ -11,9 +11,18 @@ Text Domain: wpw-api
 GitHub Plugin URI: https://github.com/ExpressTech/extended-support-bbpress
 */
 
+define('BBP_PLUGIN_URL', WP_PLUGIN_DIR . '/' . basename(__DIR__));
+define('BBP_PLUGIN_URL', WP_PLUGIN_URL . '/' . basename(__DIR__));
+
 class BBP_API_MAIN {
 
 	public function __construct() {
+		register_activation_hook(__FILE__, array($this, 'activation'));
+		register_deactivation_hook(__FILE__, array($this, 'deactivation'));
+		add_action('bbp_api_twicedaily_event', array($this, 'do_this_twicedaily'));
+		add_filter('query_vars', array($this, 'query_vars'));
+		add_action('template_redirect', array($this, 'parse_request'));
+
 		add_action('admin_menu', array($this, 'bes_register_my_custom_menu_page'));
 		add_action('bbp_template_after_user_details', array($this, 'bes_show_data'));
 		add_action('bbp_theme_after_reply_author_admin_details', array($this, 'show_author_meta_details'));
@@ -60,13 +69,13 @@ class BBP_API_MAIN {
 	}
 
 	public function show_author_meta_details() {
-		$license_text = '';
 		$reply_id = bbp_get_reply_id();
 		$email = bbp_get_reply_author_email($reply_id);
-		$cookie_name = "license-status-". md5($email);
-		if (isset($_COOKIE[$cookie_name])) {
-			$license_text = stripslashes($_COOKIE[$cookie_name]);
-		} else {
+		$transient_name = "license-status-" . md5($email);
+		$transient_data = get_transient($transient_name);
+		if (false === $transient_data) {
+			delete_transient($transient_name);
+
 			$api_res = $this->api_call($email);
 			if (!empty($api_res)) {
 				$sales = $api_res->sales;
@@ -117,17 +126,17 @@ class BBP_API_MAIN {
 							$color = 'green';
 						}
 						$final_status_sm = strtolower($final_status);
-						$license_text = "<div class='license-status-wrapper'>";
-						$license_text .= "<span>License Status: </span>";
-						$license_text .= "<span class='{$final_status_sm}' style='color:{$color}'>{$final_status}</span>";
-						$license_text .= "</div>";
-
+						$transient_data = "<div class='license-status-wrapper'>";
+						$transient_data .= "<span>License Status: </span>";
+						$transient_data .= "<span class='{$final_status_sm}' style='color:{$color}'>{$final_status}</span>";
+						$transient_data .= "</div>";
 					}
 				}
 			}
-			setcookie($cookie_name, stripslashes($license_text), time() + (86400), "/");
+			set_transient($transient_name, $transient_data, (60 * 60 * 4));
 		}
-		echo $license_text;
+		echo stripslashes($transient_data);
+		return;
 	}
 
 	public function api_call($email = '') {
@@ -254,34 +263,32 @@ class BBP_API_MAIN {
 			$topics_arr = array();
 			while ($query1->have_posts()) {
 				$query1->the_post();
-				$forum_id = wp_get_post_parent_id(get_the_ID());
+				$topic_id = get_the_ID();
+				$forum_id = wp_get_post_parent_id($topic_id);
 				$topic_author_un = get_the_author();
 				$authordata = get_user_by('login', $topic_author_un);
-				$meta_resolution = get_post_meta(get_the_ID(), 'bbr_topic_resolution');
-				if (count($meta_resolution) > 0 && $meta_resolution[0] == "3") {
+				$topic_resolution = get_post_meta($topic_id, 'bbr_topic_resolution', true);
+				$meta_resolution = false;
+				if (!empty($topic_resolution) && $topic_resolution == "3") {
 					$meta_resolution = true;
-				} else {
-					$meta_resolution = false;
 				}
-
-				//Last replay of topic
+				/* Last replay of topic */
 				$last_replay_date = '';
-				$reply_post_id = get_post_meta(get_the_ID(), '_bbp_last_reply_id', true);
+				$reply_post_id = get_post_meta($topic_id, '_bbp_last_reply_id', true);
 				if (!empty($reply_post_id)) {
 					$last_replay_date = get_the_date('Y-m-d H:i:s', $reply_post_id);
 				}
-				// echo  get_the_ID();exit;
-				//Get all conversation
-				$replies = bbp_get_all_child_ids(get_the_ID(), 'reply');
+				/* Get all conversation */
+				$replies = bbp_get_all_child_ids($topic_id, 'reply');
 				$conversation = array();
 				$conversation[] = array(
-					'id' => get_the_ID(),
+					'id' => $topic_id,
 					'username' => $topic_author_un,
 					'content' => get_the_content(),
 					'created_at' => get_the_date('Y-m-d H:i:s'),
-					'private_reply' => get_post_meta(get_the_ID(), '_bbp_reply_is_private', true) ? true : false
+					'private_reply' => get_post_meta($topic_id, '_bbp_reply_is_private', true) ? true : false
 				);
-				// var_dump($replies);exit;
+
 				if ($replies) {
 					foreach ($replies as $replay_id) {
 						$content_post = get_post($replay_id);
@@ -299,19 +306,26 @@ class BBP_API_MAIN {
 				}
 
 				usort($conversation, [$this, "cmp"]);
+				$topic_survey = 0;
+				if ($meta_resolution) {
+					/* Topic Survey/Feedback */
+					$esbtopicsurvey = get_post_meta($topic_id, 'esb_topic_survey', true);
+					$topic_survey = ($esbtopicsurvey ? intval($esbtopicsurvey) : 0);
+				}
 
 				$topics_arr[] = array(
-					'id' => get_the_ID(),
+					'id' => $topic_id,
 					'title' => get_the_title(),
 					'created_at' => get_the_date('Y-m-d H:i:s'),
 					'resolved' => $meta_resolution,
 					'forum_id' => $forum_id,
 					'forum_name' => get_the_title($forum_id),
 					'forum_url' => get_the_permalink($forum_id),
-					'topic_url' => get_the_permalink(get_the_ID()),
+					'topic_url' => get_the_permalink($topic_id),
 					'topic_author_id' => $authordata->ID,
 					'topic_author_username' => $topic_author_un,
 					'last_comment_at' => $last_replay_date,
+					'survey' => $topic_survey,
 					'conversation' => $conversation,
 					'total_converstations' => count($replies)
 				);
@@ -321,6 +335,152 @@ class BBP_API_MAIN {
 		} else {
 			return rest_ensure_response('Invalid Key');
 		}
+	}
+
+	function activation() {
+		if (!wp_next_scheduled('bbp_api_twicedaily_event')) {
+			wp_schedule_event(time(), 'twicedaily', 'bbp_api_twicedaily_event');
+		}
+	}
+
+	function deactivation() {
+		wp_clear_scheduled_hook('bbp_api_twicedaily_event');
+	}
+
+	function query_vars($query_vars) {
+		$query_vars[] = 'do';
+		$query_vars[] = 'rate';
+		return $query_vars;
+	}
+
+	function parse_request() {
+		global $wp;
+		if (array_key_exists('do', $wp->query_vars)) {
+			$queried_object = get_queried_object();
+			$topic_link = get_permalink($queried_object->ID);
+			if (array_key_exists('rate', $wp->query_vars)) {
+				$rating = get_query_var('rate');
+				$is_survey = get_post_meta($queried_object->ID, 'esb_topic_survey', true);
+				$is_survey_email = get_post_meta($queried_object->ID, 'esb_topic_survey_email', true);
+				if ($is_survey_email == 1 && (empty($is_survey) || $is_survey == 0)) {
+					if ($queried_object->post_type == 'topic') {
+						update_post_meta($queried_object->ID, 'esb_topic_survey', $rating);
+					}
+				}
+			}
+			$addedFeedback = false;
+			if (wp_verify_nonce($_REQUEST['topic_survey_nonce_field'], 'topic_survey')) {
+				if (isset($_POST['newrate']) && !empty($_POST['newrate'])) {
+					update_post_meta($queried_object->ID, 'esb_topic_survey', $_POST['newrate']);
+				}
+				if (isset($_POST['feedback']) && !empty($_POST['feedback'])) {
+					update_post_meta($queried_object->ID, 'esb_topic_survey_comment', $_POST['feedback']);
+					$addedFeedback = true;
+				}
+				wp_redirect($topic_link);
+				exit;
+			} else {
+				include('templates/feedbackform.php');
+			}
+			exit;
+		}
+		return;
+	}
+
+	function wp_mail_content_type() {
+		return "text/html";
+	}
+
+	function do_this_twicedaily() {
+		add_filter('wp_mail_content_type', array($this, 'wp_mail_content_type'));
+		$args = array(
+			'post_type' => 'topic',
+			'posts_per_page' => -1,
+			'meta_query' => array(
+				'relation' => 'AND',
+				array(
+					'key' => 'bbr_topic_resolution',
+					'value' => 3,
+					'compare' => '='
+				),
+				array(
+					'key' => 'esb_topic_survey_email',
+					'compare' => 'NOT EXISTS'
+				)
+			),
+		);
+		$allposts = get_posts($args);
+		if (!empty($allposts)) {
+			$email_template = $this->email_content();
+			foreach ($allposts as $post) {
+				$topic_id = $post->ID;
+				$topic_link = get_permalink($topic_id);
+				/* $feedback_link = add_query_arg('do','feedback',$topic_link); */
+
+				$author = get_user_by('id', $post->post_author);
+				$body = $email_template;
+				$body = str_replace('{username}', $author->display_name, $body);
+				$body = str_replace('{link}', $topic_link, $body);
+				/* $body = str_replace('{feedback_link}', $feedback_link, $body); */
+
+				$send_mail = $this->mail($author->user_email, "How would you rate the support you received?", $body);
+				if ($send_mail) {
+					update_post_meta($topic_id, 'esb_topic_survey_email', 1);
+				}
+			}
+		}
+		remove_filter('wp_mail_content_type', array($this, 'wp_mail_content_type'));
+	}
+
+	function mail($to, $subject, $body) {
+
+		if (!empty($to)) {
+			$headers = array('Content-Type: text/html; charset=UTF-8');
+
+			if (wp_mail($to, $subject, $body, $headers)) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	function email_content() {
+		$content = '<meta name="viewport" content="width=device-width">
+		<table border="0" cellpadding="0" cellspacing="0" class="body" style="border-collapse: collapse;width: 100%;">
+			<tr>
+				<td style="font-family: sans-serif; font-size: 16px; vertical-align: top;padding:10px;">
+					<p style="font-family: sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 20px;">Hello {username},</p>
+					<p style="font-family: sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 20px;">We love to hear what you think of our customer service. Please take a moment to answer one simple question by clicking either link below:</p>
+					<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: 100%; box-sizing: border-box; margin-bottom: 20px;">
+						<tbody>
+							<tr>
+								<td align="left" style="font-family: sans-serif; font-size: 16px; vertical-align: top;">
+									<p style="font-family: sans-serif; font-size: 16px; font-weight: normal; margin: 0;margin-bottom: 5px;">How would you rate the support you received?</p>
+									<table border="0" cellpadding="0" cellspacing="0" style="border-collapse: separate; mso-table-lspace: 0pt; mso-table-rspace: 0pt; width: auto;">
+										<tbody>
+											<tr>
+												<td style="font-family: sans-serif; font-size: 16px; vertical-align: top;">
+													<a href="{link}?do=feedback&rate=3" target="_blank" style="color: green;text-decoration: none;margin: 0 5px;margin-left: 0;">Great</a>
+												</td>
+												<td style="font-family: sans-serif; font-size: 16px; vertical-align: top;text-align: center;">
+													<a href="{link}?do=feedback&rate=2" target="_blank" style="color: gray;text-decoration: none;margin: 0 5px;">Okay</a>
+												</td>
+												<td style="font-family: sans-serif; font-size: 16px; vertical-align: top;text-align: center;">
+													<a href="{link}?do=feedback&rate=1" target="_blank" style="color: red;text-decoration: none;margin: 0 5px;">Not Good</a>
+												</td>
+											</tr>
+										</tbody>
+									</table>
+								</td>
+							</tr>
+						</tbody>
+					</table>
+					<p style="font-family: sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 20px;">Here is the link to the support ticket for your reference - {link}</p>
+					<p style="font-family: sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 20px;">QSM Team</p>
+				</td>
+			</tr>
+		</table>';
+		return $content;
 	}
 
 }
