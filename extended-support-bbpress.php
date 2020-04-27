@@ -19,6 +19,7 @@ class BBP_API_MAIN {
 	public function __construct() {
 		register_activation_hook(__FILE__, array($this, 'activation'));
 		register_deactivation_hook(__FILE__, array($this, 'deactivation'));
+		add_action('bbp_api_daily_event', array($this, 'do_this_daily'));
 		add_action('bbp_api_twicedaily_event', array($this, 'do_this_twicedaily'));
 		add_filter('query_vars', array($this, 'query_vars'));
 		add_action('template_redirect', array($this, 'parse_request'));
@@ -348,6 +349,9 @@ class BBP_API_MAIN {
 	}
 
 	function activation() {
+		if (!wp_next_scheduled('bbp_api_daily_event')) {
+			wp_schedule_event(time(), 'daily', 'bbp_api_daily_event');
+		}
 		if (!wp_next_scheduled('bbp_api_twicedaily_event')) {
 			wp_schedule_event(time(), 'twicedaily', 'bbp_api_twicedaily_event');
 		}
@@ -399,6 +403,50 @@ class BBP_API_MAIN {
 
 	function wp_mail_content_type() {
 		return "text/html";
+	}
+
+	function do_this_daily() {
+		$args = array(
+			'post_type' => 'topic',
+			'posts_per_page' => -1,
+			'meta_query' => array(
+				'relation' => 'OR',
+				array(
+					'key' => 'bbr_topic_resolution',
+					'value' => 3,
+					'compare' => '!='
+				),
+				array(
+					'key' => 'bbr_topic_resolution',
+					'compare' => 'NOT EXISTS'
+				)
+			),
+			'date_query' => array(
+				array(
+					'column' => 'post_date_gmt',
+					'after' => '1 month ago',
+				),
+			),
+		);
+		$allTopics = get_posts($args);
+		if (!empty($allTopics)) {
+			foreach ($allTopics as $post) {
+				$topic_id = $post->ID;
+				$topic_resolution = get_post_meta($topic_id, 'bbr_topic_resolution', true);
+				$last_reply_id = (int) get_post_meta( $topic_id, '_bbp_last_reply_id', true );
+				$last_reply_author = get_post_field('post_author', $last_reply_id);
+				if ($topic_resolution != "3" && bbp_is_user_keymaster($last_reply_author)) {
+					$last_active_time = get_post_meta($topic_id, '_bbp_last_active_time', true);
+					if (strtotime($last_active_time) < strtotime('-7 days')) {
+						if (function_exists('bbResolutions\update_topic_resolution')) {
+							bbResolutions\update_topic_resolution($topic_id, 'resolved');
+						} else {
+							update_post_meta($topic_id, 'bbr_topic_resolution', 3);
+						}
+					}
+				}
+			}
+		}
 	}
 
 	function do_this_twicedaily() {
