@@ -1,0 +1,41 @@
+body{
+    background-color: #f9f9f9;
+}
+.smileys label{text-align: center;cursor: pointer;padding-top: 10px;padding-bottom: 10px;margin-left: -1px;border: 1px solid #DDD;border-radius: 3px;}
+.smileys label.active{}
+.smileys label i{
+    font-size: 40px;
+}
+.smileys label span{display: block;font-weight: bold;}
+.smileys label input[type="radio"] {
+	-webkit-appearance: none; 
+}
+.smileys label input[type="radio"]:hover, .smileys label input[type="radio"]:checked {
+	-webkit-filter: grayscale(0);
+	filter: grayscale(0);
+}
+.smileys label input[type="radio"]:focus {
+	outline: 0;
+}
+.smileys label.happy {
+	color: #155724;
+}
+.smileys label.neutral {
+	color: #818182;
+}
+.smileys label.sad {
+	color: #721c24;
+}
+/*
+.smileys label input[type="radio"].happy {
+	background: url("https://res.cloudinary.com/turdlife/image/upload/v1492864443/happy_ampvnc.svg") center;
+	background-size: cover;
+}
+.smileys label input[type="radio"].neutral {
+	background: url("https://res.cloudinary.com/turdlife/image/upload/v1492864443/neutral_t3q8hz.svg") center;
+	background-size: cover;
+}
+.smileys label input[type="radio"].sad {
+	background: url("https://res.cloudinary.com/turdlife/image/upload/v1492864443/sad_bj1tuj.svg") center;
+	background-size: cover;
+}*/
