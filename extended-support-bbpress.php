@@ -418,6 +418,12 @@ class BBP_API_MAIN {
 					'compare' => 'NOT EXISTS'
 				)
 			),
+			'date_query' => array(
+				array(
+					'column' => 'post_date_gmt',
+					'after' => '1 month ago',
+				),
+			),
 		);
 		$allposts = get_posts($args);
 		
