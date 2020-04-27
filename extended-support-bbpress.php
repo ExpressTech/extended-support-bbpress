@@ -11,7 +11,7 @@ Text Domain: wpw-api
 GitHub Plugin URI: https://github.com/ExpressTech/extended-support-bbpress
 */
 
-define('BBP_PLUGIN_URL', WP_PLUGIN_DIR . '/' . basename(__DIR__));
+define('BBP_PLUGIN_DIR', WP_PLUGIN_DIR . '/' . basename(__DIR__));
 define('BBP_PLUGIN_URL', WP_PLUGIN_URL . '/' . basename(__DIR__));
 
 class BBP_API_MAIN {
@@ -369,7 +369,7 @@ class BBP_API_MAIN {
 				}
 			}
 			$addedFeedback = false;
-			if (wp_verify_nonce($_REQUEST['topic_survey_nonce_field'], 'topic_survey')) {
+			if (isset($_REQUEST['topic_survey_nonce_field']) && wp_verify_nonce($_REQUEST['topic_survey_nonce_field'], 'topic_survey')) {
 				if (isset($_POST['newrate']) && !empty($_POST['newrate'])) {
 					update_post_meta($queried_object->ID, 'esb_topic_survey', $_POST['newrate']);
 				}
@@ -410,6 +410,7 @@ class BBP_API_MAIN {
 			),
 		);
 		$allposts = get_posts($args);
+		
 		if (!empty($allposts)) {
 			$email_template = $this->email_content();
 			foreach ($allposts as $post) {
