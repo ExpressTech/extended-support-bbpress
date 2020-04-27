@@ -23,10 +23,18 @@ class BBP_API_MAIN {
 		add_filter('query_vars', array($this, 'query_vars'));
 		add_action('template_redirect', array($this, 'parse_request'));
 
+		add_action('init', array($this, 'init'));
+
 		add_action('admin_menu', array($this, 'bes_register_my_custom_menu_page'));
 		add_action('bbp_template_after_user_details', array($this, 'bes_show_data'));
 		add_action('bbp_theme_after_reply_author_admin_details', array($this, 'show_author_meta_details'));
 		add_action('rest_api_init', array($this, 'wpw_api_register_endpoints'));
+	}
+
+	public function init() {
+		if (!bbp_is_user_keymaster()) {
+			remove_action('bbp_template_before_single_topic', 'bbResolutions\topic_resolution_form');
+		}
 	}
 
 	public function bes_show_data() {
