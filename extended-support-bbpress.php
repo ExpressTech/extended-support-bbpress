@@ -263,10 +263,9 @@ class BBP_API_MAIN {
 			$topics_arr = array();
 			while ($query1->have_posts()) {
 				$query1->the_post();
+				global $authordata;
 				$topic_id = get_the_ID();
 				$forum_id = wp_get_post_parent_id($topic_id);
-				$topic_author_un = get_the_author();
-				$authordata = get_user_by('login', $topic_author_un);
 				$topic_resolution = get_post_meta($topic_id, 'bbr_topic_resolution', true);
 				$meta_resolution = false;
 				if (!empty($topic_resolution) && $topic_resolution == "3") {
@@ -283,7 +282,7 @@ class BBP_API_MAIN {
 				$conversation = array();
 				$conversation[] = array(
 					'id' => $topic_id,
-					'username' => $topic_author_un,
+					'username' => $authordata->user_login,
 					'content' => get_the_content(),
 					'created_at' => get_the_date('Y-m-d H:i:s'),
 					'private_reply' => get_post_meta($topic_id, '_bbp_reply_is_private', true) ? true : false
@@ -307,10 +306,12 @@ class BBP_API_MAIN {
 
 				usort($conversation, [$this, "cmp"]);
 				$topic_survey = 0;
+				$topic_survey_comment = '';
 				if ($meta_resolution) {
 					/* Topic Survey/Feedback */
 					$esbtopicsurvey = get_post_meta($topic_id, 'esb_topic_survey', true);
 					$topic_survey = ($esbtopicsurvey ? intval($esbtopicsurvey) : 0);
+					$topic_survey_comment = get_post_meta($topic_id, 'esb_topic_survey_comment', true);
 				}
 
 				$topics_arr[] = array(
@@ -323,9 +324,10 @@ class BBP_API_MAIN {
 					'forum_url' => get_the_permalink($forum_id),
 					'topic_url' => get_the_permalink($topic_id),
 					'topic_author_id' => $authordata->ID,
-					'topic_author_username' => $topic_author_un,
+					'topic_author_username' => $authordata->user_login,
 					'last_comment_at' => $last_replay_date,
 					'survey' => $topic_survey,
+					'survey_comment' => $topic_survey_comment,
 					'conversation' => $conversation,
 					'total_converstations' => count($replies)
 				);
@@ -476,7 +478,7 @@ class BBP_API_MAIN {
 							</tr>
 						</tbody>
 					</table>
-					<p style="font-family: sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 20px;">Here is the link to the support ticket for your reference - {link}</p>
+					<p style="font-family: sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 20px;">Here is the link to the support ticket for your reference - <a href="{link}" target="_blank">{link}</a></p>
 					<p style="font-family: sans-serif; font-size: 16px; font-weight: normal; margin: 0; margin-bottom: 20px;">QSM Team</p>
 				</td>
 			</tr>
