@@ -5,9 +5,9 @@
 		<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 		<title>Rate the support</title>
 		<!-- Latest compiled and minified CSS -->
-		<link rel="stylesheet" href="<?php echo BBP_PLUGIN_URL;?>/templates/css/bootstrap.min.css">
-		<link rel="stylesheet" href="<?php echo BBP_PLUGIN_URL;?>/templates/css/fontawesome.min.css">
-		<link rel="stylesheet" href="<?php echo BBP_PLUGIN_URL;?>/templates/css/style.css">
+		<link rel="stylesheet" href="<?php echo ESB_PLUGIN_URL;?>/templates/css/bootstrap.min.css">
+		<link rel="stylesheet" href="<?php echo ESB_PLUGIN_URL;?>/templates/css/fontawesome.min.css">
+		<link rel="stylesheet" href="<?php echo ESB_PLUGIN_URL;?>/templates/css/style.css">
 	</head>
 	<body>
 		<div class="container">
