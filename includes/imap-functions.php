@@ -16,13 +16,6 @@ class ESB_IMAP {
 	}
 
 	function init() {
-
-		if (isset($_GET['docron']) && $_GET['docron'] == '1') {
-			$this->esb_imap_check_email_pipe_func();
-		}
-
-		wp_clear_scheduled_hook('esb_imap_check_email_pipe');
-		return;
 		if (!wp_next_scheduled('esb_imap_check_email_pipe')) {
 			wp_schedule_event(time(), 'every_minute', 'esb_imap_check_email_pipe');
 		}
@@ -129,16 +122,15 @@ class ESB_IMAP {
 				/**
 				 * Get the ID of the Topic Or Reply
 				 */
-				preg_match("/\[{$string_prefix}(.*?)\]/", $subject, $subject);
-				$subject = $subject[1];
-				if (!empty($subject)) {
-					$topic_id = preg_replace('/[^0-9]/', '', $subject);
+				preg_match("/\[{$string_prefix}(.*?)\]/", $subject, $match_data);
+				if (!empty($match_data) && !empty($match_data[1])) {
+					$topic_id = preg_replace('/[^0-9]/', '', $match_data[1]);
 					$post = get_post($topic_id);
 					if (!empty($post) && $post->post_type == bbp_get_topic_post_type()) {
 						$topic_url = bbp_get_topic_permalink($topic_id);
 						$user = get_user_by('email', $fromEmail);
 						if (empty($user)) {
-							send_unknown_account_email($fromEmail, $fromName, $topic_url);
+							$this->send_unknown_account_email($fromEmail, $fromName, $topic_url);
 							$mailbox->markMailAsRead($message);
 							continue;
 						} else {
@@ -146,12 +138,11 @@ class ESB_IMAP {
 							$reply_content = apply_filters('bbp_new_reply_pre_content', $reply_content);
 
 							$replyData = array('post_parent' => $topic_id, 'post_author' => $user->ID, 'post_content' => $reply_content);
-							$replyMeta = array('author_ip' => '127.0.0.1', 'forum_id' => $forum_id, 'topic_id' => $topic_id);
+							$replyMeta = array('forum_id' => $forum_id, 'topic_id' => $topic_id);
 							$reply_id = bbp_insert_reply($replyData, $replyMeta);
 							if (!empty($reply_id)) {
 								/** Update counts, etc... ******************************************** */
 								do_action('bbp_new_reply', $reply_id, $topic_id, $forum_id, array(), $user->ID, false, 0);
-
 								/** Additional Actions (After Save) ********************************** */
 								do_action('bbp_new_reply_post_extras', $reply_id);
 							}
@@ -161,6 +152,34 @@ class ESB_IMAP {
 					/*
 					 * Create Topic
 					 */
+					$create_topic = get_option('esb_piping_create_topic');
+					if ($create_topic == '1') {
+						$user = get_user_by('email', $fromEmail);
+						if (empty($user)) {
+							$home_url = home_url();
+							$this->send_unknown_account_email($fromEmail, $fromName, $home_url);
+							$mailbox->markMailAsRead($message);
+							continue;
+						} else {
+							$anonymous_data = array();
+							$topic_title = apply_filters( 'bbp_new_topic_pre_title', sanitize_text_field($subject_full) );
+							$topic_content = apply_filters( 'bbp_new_topic_pre_content', $reply_content );
+							$topic_id = bbp_insert_topic(
+								array(
+								'post_author' => $user->ID,
+								'post_parent' => 0,
+								'post_title' => $topic_title,
+								'post_content' => $topic_content,
+								), array('forum_id' => 0)
+							);
+							if (!empty($topic_id)) {
+								/** Update counts, etc... ******************************************** */
+								do_action('bbp_new_topic', $topic_id, 0, $anonymous_data, $user->ID);
+								/** Additional Actions (After Save) ********************************** */
+								do_action('bbp_new_topic_post_extras', $topic_id);
+							}
+						}
+					}
 				}
 			}
 		}

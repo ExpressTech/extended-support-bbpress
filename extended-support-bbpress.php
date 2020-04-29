@@ -252,6 +252,7 @@ class BBP_API_MAIN {
 			update_option('esb_piping_mailbox_name', sanitize_text_field($_POST['esb_piping_mailbox_name']));
 			update_option('esb_piping_mailbox_pass', sanitize_text_field($_POST['esb_piping_mailbox_pass']));
 			update_option('esb_piping_string_prefix', sanitize_text_field($_POST['esb_piping_string_prefix']));
+			update_option('esb_piping_create_topic', (isset($_POST['esb_piping_create_topic']) ? 1 : 0));
 			?>
 			<div id="message" class="updated notice notice-success is-dismissible">
 				<p>Settings updated. </p>
@@ -263,6 +264,7 @@ class BBP_API_MAIN {
 		$mailbox_name = get_option('esb_piping_mailbox_name');
 		$mailbox_pass = get_option('esb_piping_mailbox_pass');
 		$string_prefix = get_option('esb_piping_string_prefix');
+		$create_topic = get_option('esb_piping_create_topic');
 		?>
 		<div class="wrap" id="cqpim-settings"><div id="icon-tools" class="icon32"></div>
 			<h1><?php _e('Settings'); ?></h1>
@@ -277,7 +279,7 @@ class BBP_API_MAIN {
 					<p><?php _e('Mail Server Address (including port and path if necessary. eg. for Gmail, it would be "imap.gmail.com:993/imap/ssl"'); ?></p>
 					<input type="text" name="esb_piping_mail_server" id="esb_piping_mail_server" value="<?php echo $mail_server; ?>" />
 					<br />
-					<p><?php _e('Email Address (If Piping is active, this address will be the reply address of all ticket/task emails. Ensure it matches the mailbox below)'); ?></p>
+					<p><?php _e('Email Address (If Piping is active, this address will be the reply address of all topics/replies emails. Ensure it matches the mailbox below)'); ?></p>
 					<input type="text" name="esb_piping_address" id="esb_piping_address" value="<?php echo $piping_address; ?>" />
 					<br />
 					<p><?php _e('Email Username (often the same as the email address)'); ?></p>
@@ -289,8 +291,12 @@ class BBP_API_MAIN {
 					<br />
 					<p><?php _e('ID Prefix'); ?></p>
 					<p><?php _e('The ID Prefix is used in the Piping ID tag and helps the system to identify where updates should go. For example, if you enter "ID" in this field, the result of the [PIPING_ID] tag would be "[ID:1234]".'); ?></p>
-					<?php $value = get_option('cqpim_string_prefix'); ?>
 					<input type="text" name="esb_piping_string_prefix" value="<?php echo $string_prefix; ?>" />
+					<br /><br />
+					<label>
+						<input type="checkbox" name="esb_piping_create_topic" value="1" <?php checked($create_topic, 1);?> />
+						<span><?php _e('Create new topics of unrecognized email subjects?');?></span>
+					</label>
 					<br />
 					<p class="submit">
 						<input type="submit" class="button-primary" name="esb_settings_submit" value="<?php _e('Save Changes'); ?>" />
