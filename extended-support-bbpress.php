@@ -11,8 +11,15 @@ Text Domain: wpw-api
 GitHub Plugin URI: https://github.com/ExpressTech/extended-support-bbpress
 */
 
-define('BBP_PLUGIN_DIR', WP_PLUGIN_DIR . '/' . basename(__DIR__));
-define('BBP_PLUGIN_URL', WP_PLUGIN_URL . '/' . basename(__DIR__));
+define('ESB_PLUGIN_DIR', WP_PLUGIN_DIR . '/' . basename(__DIR__));
+define('ESB_PLUGIN_URL', WP_PLUGIN_URL . '/' . basename(__DIR__));
+define('ESB_INCLUDES_DIR', ESB_PLUGIN_DIR . '/includes');
+$wpupload_dir = wp_upload_dir();
+$upload_dir = $wpupload_dir['basedir'] . '/bbp-uploads';
+if (!is_dir($upload_dir)) {
+	wp_mkdir_p($upload_dir);
+}
+define('ESB_UPLOAD_DIR', $upload_dir);
 
 class BBP_API_MAIN {
 
@@ -30,6 +37,8 @@ class BBP_API_MAIN {
 		add_action('bbp_template_after_user_details', array($this, 'bes_show_data'));
 		add_action('bbp_theme_after_reply_author_admin_details', array($this, 'show_author_meta_details'));
 		add_action('rest_api_init', array($this, 'wpw_api_register_endpoints'));
+
+		include_once(ESB_INCLUDES_DIR.'/imap-functions.php');
 	}
 
 	public function init() {
@@ -45,33 +54,35 @@ class BBP_API_MAIN {
 			$email = bbp_get_displayed_user_field('user_email');
 			$body = $this->api_call($email);
 			if (!empty($body)) {
-				$sales = $body->sales;
-				echo "<style>.esb-license-info {border: 1px solid gray;margin-bottom: 10px;padding: 10px;clear: both;}</style>";
-				echo "<h1>License Information</h1>";
-				foreach ($body->sales as $sale) {
-					$payment_link = trailingslashit($site_url) . 'wp-admin/edit.php?post_type=download&page=edd-payment-history&view=view-order-details&id=' . $sale->ID;
-					echo "<div class='esb-license-info'>";
-					echo "<p>ID: <a href='{$payment_link}' target='_blank'>{$sale->ID}</a></p>";
-					echo "<p>Customer ID: {$sale->customer_id}</p>";
-					echo "<p>Date of Purchase: {$sale->date}</p>";
-					echo "<p><strong>Products:</strong></p>";
-					foreach ($sale->products as $product) {
-						echo "<p>{$product->name} ({$product->price_name})</p>";
-					}
-					echo "<p><strong>Licenses:</strong></p>";
-					if (!empty($sale->licenses)) {
-						foreach ($sale->licenses as $license) {
-							echo "<p>{$license->name}</p>";
-							$color = "gray";
-							if ($license->status == 'expired') {
-								$color = "red";
-							} elseif ($license->status == 'active') {
-								$color = "green";
-							}
-							echo "<p >Status: <span style='color:$color'> {$license->status}</span></p>";
+				if (isset($body->sales) && !empty($body->sales)) {
+					$sales = $body->sales;
+					echo "<style>.esb-license-info {border: 1px solid gray;margin-bottom: 10px;padding: 10px;clear: both;}</style>";
+					echo "<h1>License Information</h1>";
+					foreach ($body->sales as $sale) {
+						$payment_link = trailingslashit($site_url) . 'wp-admin/edit.php?post_type=download&page=edd-payment-history&view=view-order-details&id=' . $sale->ID;
+						echo "<div class='esb-license-info'>";
+						echo "<p>ID: <a href='{$payment_link}' target='_blank'>{$sale->ID}</a></p>";
+						echo "<p>Customer ID: {$sale->customer_id}</p>";
+						echo "<p>Date of Purchase: {$sale->date}</p>";
+						echo "<p><strong>Products:</strong></p>";
+						foreach ($sale->products as $product) {
+							echo "<p>{$product->name} ({$product->price_name})</p>";
 						}
+						echo "<p><strong>Licenses:</strong></p>";
+						if (!empty($sale->licenses)) {
+							foreach ($sale->licenses as $license) {
+								echo "<p>{$license->name}</p>";
+								$color = "gray";
+								if ($license->status == 'expired') {
+									$color = "red";
+								} elseif ($license->status == 'active') {
+									$color = "green";
+								}
+								echo "<p >Status: <span style='color:$color'> {$license->status}</span></p>";
+							}
+						}
+						echo "</div>";
 					}
-					echo "</div>";
 				}
 			}
 		}
@@ -87,10 +98,10 @@ class BBP_API_MAIN {
 
 			$api_res = $this->api_call($email);
 			if (!empty($api_res)) {
-				$sales = $api_res->sales;
 				$license_statuses = array();
 				$active = $inactive = $expired = $disabled = 0;
-				if (!empty($sales)) {
+				if (isset($api_res->sales) && !empty($api_res->sales)) {
+					$sales = $api_res->sales;
 					foreach ($sales as $sale) {
 						$saleuser = get_user_by('email', $sale->email);
 						if (bbp_is_user_keymaster($saleuser->ID)) {
@@ -164,7 +175,8 @@ class BBP_API_MAIN {
 	}
 
 	public function bes_register_my_custom_menu_page() {
-		add_menu_page('Extended Support', 'Extended Support', 'manage_options', 'extended_support_bbpress', array($this, 'create_admin_settings'), 'dashicons-external');
+		$mypage = add_menu_page('Extended Support', 'Extended Support', 'manage_options', 'extended_support_bbpress', array($this, 'create_admin_settings'), 'dashicons-external');
+		add_submenu_page('extended_support_bbpress', 'Settings', 'Settings', 'manage_options', 'esb_settings', array($this, 'esb_settings'));
 	}
 
 	public function create_admin_settings() {
@@ -229,6 +241,96 @@ class BBP_API_MAIN {
 					</tr>
 				</table>
 			</form>
+		</div>
+		<?php
+	}
+
+	public function esb_settings() {
+		if (isset($_POST['esb_settings_submit'])) {
+			update_option('esb_piping_mail_server', sanitize_text_field($_POST['esb_piping_mail_server']));
+			update_option('esb_piping_address', sanitize_text_field($_POST['esb_piping_address']));
+			update_option('esb_piping_mailbox_name', sanitize_text_field($_POST['esb_piping_mailbox_name']));
+			update_option('esb_piping_mailbox_pass', sanitize_text_field($_POST['esb_piping_mailbox_pass']));
+			update_option('esb_piping_string_prefix', sanitize_text_field($_POST['esb_piping_string_prefix']));
+			?>
+			<div id="message" class="updated notice notice-success is-dismissible">
+				<p>Settings updated. </p>
+			</div>
+			<?php
+		}
+		$mail_server = get_option('esb_piping_mail_server');
+		$piping_address = get_option('esb_piping_address');
+		$mailbox_name = get_option('esb_piping_mailbox_name');
+		$mailbox_pass = get_option('esb_piping_mailbox_pass');
+		$string_prefix = get_option('esb_piping_string_prefix');
+		?>
+		<div class="wrap" id="cqpim-settings"><div id="icon-tools" class="icon32"></div>
+			<h1><?php _e('Settings'); ?></h1>
+			<form method="post" action="" enctype="multipart/form-data">
+				<div id="main-container" class="esb_settings_block" id="esb_settings_block">
+					<h3><?php _e('Email Piping'); ?></h3>
+					<p><?php _e('Email Piping works by scanning your mailbox and parsing new emails into the relevant Topic/Reply.'); ?></p>
+					<p><?php _e('We highly recommend creating a new mailbox for this process.'); ?></p>
+					<p><?php _e('It is also critical to place the %%PIPING_ID%% tag in the subject line of all emails related to Topics and Replies.'); ?></p>
+					<p><?php _e('You should also check that the emails contain the latest update message. You can check for the correct tag by clicking the "View Sample Content" button next to each email.'); ?></p>
+					<h3><?php _e('Mail Settings'); ?></h3>
+					<p><?php _e('Mail Server Address (including port and path if necessary. eg. for Gmail, it would be "imap.gmail.com:993/imap/ssl"'); ?></p>
+					<input type="text" name="esb_piping_mail_server" id="esb_piping_mail_server" value="<?php echo $mail_server; ?>" />
+					<br />
+					<p><?php _e('Email Address (If Piping is active, this address will be the reply address of all ticket/task emails. Ensure it matches the mailbox below)'); ?></p>
+					<input type="text" name="esb_piping_address" id="esb_piping_address" value="<?php echo $piping_address; ?>" />
+					<br />
+					<p><?php _e('Email Username (often the same as the email address)'); ?></p>
+					<input type="text" name="esb_piping_mailbox_name" id="esb_piping_mailbox_name" value="<?php echo $mailbox_name; ?>" />
+					<br />
+					<p><?php _e('Email Password'); ?></p>
+					<input type="password" name="esb_piping_mailbox_pass" id="esb_piping_mailbox_pass" value="<?php echo $mailbox_pass; ?>" />
+					<button id="test_piping" class="button-primary" /><?php _e('Test Settings'); ?></button>
+					<br />
+					<p><?php _e('ID Prefix'); ?></p>
+					<p><?php _e('The ID Prefix is used in the Piping ID tag and helps the system to identify where updates should go. For example, if you enter "ID" in this field, the result of the [PIPING_ID] tag would be "[ID:1234]".'); ?></p>
+					<?php $value = get_option('cqpim_string_prefix'); ?>
+					<input type="text" name="esb_piping_string_prefix" value="<?php echo $string_prefix; ?>" />
+					<br />
+					<p class="submit">
+						<input type="submit" class="button-primary" name="esb_settings_submit" value="<?php _e('Save Changes'); ?>" />
+					</p>
+				</div>
+			</form>
+			<script type="text/javascript">
+				jQuery(function($){
+					jQuery('#test_piping').click(function(e) {
+						e.preventDefault();
+						var mail_server = jQuery('#esb_piping_mail_server').val();
+						var mailbox_name = jQuery('#esb_piping_mailbox_name').val();
+						var mailbox_pass = jQuery('#esb_piping_mailbox_pass').val();
+						var data = {
+							'action' : 'esb_test_piping',
+							'mail_server' : mail_server,
+							'mailbox_name' : mailbox_name,
+							'mailbox_pass' : mailbox_pass,
+						}
+						jQuery.ajax({
+							url: ajaxurl,
+							data: data,
+							type: 'POST',
+							dataType: 'json',
+							beforeSend: function(){
+								jQuery('#test_piping').prop('disabled', true);
+							},
+						}).always(function(response) {
+							console.log(response);
+						}).done(function(response){
+							jQuery('#test_piping').prop('disabled', false);
+							if(response.error == true) {
+								alert(response.message);
+							} else {
+								alert(response.message);
+							}
+						});
+					});
+				});
+			</script>
 		</div>
 		<?php
 	}
