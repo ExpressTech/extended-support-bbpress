@@ -18,13 +18,17 @@ class ESB_IMAP {
 
 	function init() {
 		if (!wp_next_scheduled('esb_imap_check_email_pipe')) {
-			wp_schedule_event(time(), 'every_minute', 'esb_imap_check_email_pipe');
+			wp_schedule_event(time(), 'every_two_minute', 'esb_imap_check_email_pipe');
 		}
 	}
 
 	function cron_schedules($schedules) {
 		$schedules['every_minute'] = array(
 			'interval' => 60,
+			'display' => __('Every Minute', 'cqpim')
+		);
+		$schedules['every_two_minute'] = array(
+			'interval' => 120,
 			'display' => __('Every Minute', 'cqpim')
 		);
 		return $schedules;
@@ -162,28 +166,29 @@ class ESB_IMAP {
 					 * Create Topic
 					 */
 					$create_topic = get_option('esb_piping_create_topic');
+					$default_forum = get_option('esb_piping_forum_id');
 					if ($create_topic == '1') {
 						$user = get_user_by('email', $fromEmail);
-						if (empty($user)) {
-							$home_url = home_url();
-							$this->send_unknown_account_email($fromEmail, $fromName, $home_url);
-							$mailbox->markMailAsRead($message);
-							continue;
+						if (!empty($user)) {
+							$user_id = $user->ID;
 						} else {
+							
+						}
+						if (!empty($user_id)) {
 							$anonymous_data = array();
 							$topic_title = apply_filters( 'bbp_new_topic_pre_title', sanitize_text_field($subject_full) );
 							$topic_content = apply_filters( 'bbp_new_topic_pre_content', $reply_content );
 							$topic_id = bbp_insert_topic(
 								array(
-								'post_author' => $user->ID,
-								'post_parent' => 0,
+								'post_author' => $user_id,
+								'post_parent' => $default_forum,
 								'post_title' => $topic_title,
 								'post_content' => $topic_content,
-								), array('forum_id' => 0)
+								), array('forum_id' => $default_forum)
 							);
 							if (!empty($topic_id)) {
 								/** Update counts, etc... ******************************************** */
-								do_action('bbp_new_topic', $topic_id, 0, $anonymous_data, $user->ID);
+								do_action('bbp_new_topic', $topic_id, 0, $anonymous_data, $user_id);
 								/** Additional Actions (After Save) ********************************** */
 								do_action('bbp_new_topic_post_extras', $topic_id);
 							}
