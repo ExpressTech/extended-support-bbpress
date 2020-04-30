@@ -4,6 +4,7 @@ class ESB_IMAP {
 
 	function __construct() {
 		add_action('init', array($this, 'init'));
+		add_filter('cron_schedules', array($this, 'cron_schedules'));
 		add_action('esb_imap_check_email_pipe', array($this, 'esb_imap_check_email_pipe_func'));
 
 		add_filter('bbpnns_extra_topic_tags', array($this, 'bbpnns_extra_topic_tags'), 10, 3);
@@ -19,6 +20,14 @@ class ESB_IMAP {
 		if (!wp_next_scheduled('esb_imap_check_email_pipe')) {
 			wp_schedule_event(time(), 'every_minute', 'esb_imap_check_email_pipe');
 		}
+	}
+
+	function cron_schedules($schedules) {
+		$schedules['every_minute'] = array(
+			'interval' => 60,
+			'display' => __('Every Minute', 'cqpim')
+		);
+		return $schedules;
 	}
 
 	function bbpnns_extra_topic_tags($tags = '') {
