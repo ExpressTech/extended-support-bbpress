@@ -154,6 +154,9 @@ class ESB_IMAP {
 							$replyMeta = array('forum_id' => $forum_id, 'topic_id' => $topic_id);
 							$reply_id = bbp_insert_reply($replyData, $replyMeta);
 							if (!empty($reply_id)) {
+								if(!empty($attached_media)) {
+									$attachments = $this->insert_attachment($attached_media, $reply_id, $user->ID);
+								}
 								/** Update counts, etc... ******************************************** */
 								do_action('bbp_new_reply', $reply_id, $topic_id, $forum_id, array(), $user->ID, false, 0);
 								/** Additional Actions (After Save) ********************************** */
@@ -189,6 +192,7 @@ class ESB_IMAP {
 							if (is_wp_error($errors)) {
 								continue;
 							}
+							$user = get_user_by('id', $user_id);
 						}
 						if (!empty($user_id)) {
 							$anonymous_data = array();
@@ -203,6 +207,9 @@ class ESB_IMAP {
 								), array('forum_id' => $default_forum)
 							);
 							if (!empty($topic_id)) {
+								if(!empty($attached_media)) {
+									$attachments = $this->insert_attachment($attached_media, $topic_id, $user_id);
+								}
 								/** Update counts, etc... ******************************************** */
 								do_action('bbp_new_topic', $topic_id, 0, $anonymous_data, $user_id);
 								/** Additional Actions (After Save) ********************************** */
@@ -219,6 +226,40 @@ class ESB_IMAP {
 		exit;
 	}
 	
+	function insert_attachment($attached_media = array(), $parent_id = 0, $user_id = 0) {
+		require_once(ABSPATH . 'wp-admin/includes/image.php');
+		$attachments = array();
+		$allowed = get_allowed_mime_types($user);
+		$extensions = array();
+		foreach ($allowed as $key => $mime) {
+			$keys = explode('|', $key);
+			foreach ($keys as $extension) {
+				$extensions[] = $extension;
+			}
+		}
+		foreach ($attached_media as $file) {
+			$extension = pathinfo($file->name, PATHINFO_EXTENSION);
+			if (!in_array(strtolower($extension), $extensions)) {
+				continue;
+			}
+			$filename = wp_basename($file->filePath);
+			$attachment = array(
+				'post_mime_type' => $extension,
+				'post_title' => $file->name,
+				'post_content' => '',
+				'post_status' => 'inherit',
+				'guid' => ESB_UPLOAD_URL . '/' . $filename,
+				'post_author' => $user_id
+			);
+			$attach_id = wp_insert_attachment($attachment, ESB_UPLOAD_URL . '/' . $filename, $parent_id);
+			$attach_data = wp_generate_attachment_metadata($attach_id, $file->filePath);
+			wp_update_attachment_metadata($attach_id, $attach_data);
+			update_post_meta($attach_id, '_bbp_attachment', '1');
+			$attachments[] = $file->filePath;
+		}
+		return $attachments;
+	}
+
 	function send_unknown_account_email($to, $fromName, $url) {
 		$email_subject = "Email Address Not Recognised";
 		

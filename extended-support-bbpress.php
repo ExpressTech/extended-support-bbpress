@@ -16,10 +16,12 @@ define('ESB_PLUGIN_URL', WP_PLUGIN_URL . '/' . basename(__DIR__));
 define('ESB_INCLUDES_DIR', ESB_PLUGIN_DIR . '/includes');
 $wpupload_dir = wp_upload_dir();
 $upload_dir = $wpupload_dir['basedir'] . '/bbp-uploads';
+$upload_url = $wpupload_dir['baseurl'] . '/bbp-uploads';
 if (!is_dir($upload_dir)) {
 	wp_mkdir_p($upload_dir);
 }
 define('ESB_UPLOAD_DIR', $upload_dir);
+define('ESB_UPLOAD_URL', $upload_url);
 
 class BBP_API_MAIN {
 
