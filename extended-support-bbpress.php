@@ -253,6 +253,7 @@ class BBP_API_MAIN {
 			update_option('esb_piping_mailbox_pass', sanitize_text_field($_POST['esb_piping_mailbox_pass']));
 			update_option('esb_piping_string_prefix', sanitize_text_field($_POST['esb_piping_string_prefix']));
 			update_option('esb_piping_create_topic', (isset($_POST['esb_piping_create_topic']) ? 1 : 0));
+			update_option('esb_piping_forum_id', sanitize_text_field($_POST['esb_piping_forum_id']));
 			?>
 			<div id="message" class="updated notice notice-success is-dismissible">
 				<p>Settings updated. </p>
@@ -265,6 +266,7 @@ class BBP_API_MAIN {
 		$mailbox_pass = get_option('esb_piping_mailbox_pass');
 		$string_prefix = get_option('esb_piping_string_prefix');
 		$create_topic = get_option('esb_piping_create_topic');
+		$forum_id = get_option('esb_piping_forum_id');
 		?>
 		<div class="wrap" id="cqpim-settings"><div id="icon-tools" class="icon32"></div>
 			<h1><?php _e('Settings'); ?></h1>
@@ -294,9 +296,26 @@ class BBP_API_MAIN {
 					<input type="text" name="esb_piping_string_prefix" value="<?php echo $string_prefix; ?>" />
 					<br /><br />
 					<label>
-						<input type="checkbox" name="esb_piping_create_topic" value="1" <?php checked($create_topic, 1);?> />
+						<input type="checkbox" name="esb_piping_create_topic" id="esb_piping_create_topic" value="1" <?php checked($create_topic, 1);?> />
 						<span><?php _e('Create new topics of unrecognized email subjects?');?></span>
 					</label>
+					<br />
+					<div class="piping_forum_selection" style="padding-left: 20px;<?php echo ($create_topic == 1 ? '' : 'display:none;');?>">
+						<p><?php _e('Default Forum for new topics');?></p>
+						<?php 
+						bbp_dropdown(array(
+							'post_type' => bbp_get_forum_post_type(),
+							'selected' => $forum_id,
+							'numberposts' => -1,
+							'orderby' => 'title',
+							'order' => 'ASC',
+							'options_only' => false,
+							'show_none' => esc_html__('&mdash; No forum &mdash;', 'bbpress'),
+							'select_id' => 'esb_piping_forum_id',
+							)
+						);
+						?>
+					</div>
 					<br />
 					<p class="submit">
 						<input type="submit" class="button-primary" name="esb_settings_submit" value="<?php _e('Save Changes'); ?>" />
@@ -305,6 +324,13 @@ class BBP_API_MAIN {
 			</form>
 			<script type="text/javascript">
 				jQuery(function($){
+					jQuery('#esb_piping_create_topic').click(function(e) {
+						if (jQuery(this).is(':checked')) {
+							jQuery('.piping_forum_selection').show();
+						} else {
+							jQuery('.piping_forum_selection').hide();
+						}
+					});
 					jQuery('#test_piping').click(function(e) {
 						e.preventDefault();
 						var mail_server = jQuery('#esb_piping_mail_server').val();
