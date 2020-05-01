@@ -29,7 +29,7 @@ class ESB_IMAP {
 		);
 		$schedules['every_two_minute'] = array(
 			'interval' => 120,
-			'display' => __('Every Minute', 'cqpim')
+			'display' => __('Every Two Minutes', 'cqpim')
 		);
 		return $schedules;
 	}
@@ -172,7 +172,23 @@ class ESB_IMAP {
 						if (!empty($user)) {
 							$user_id = $user->ID;
 						} else {
-							
+							$parts = explode("@", $fromEmail);
+							$fromLogin = $parts[0];
+							$check = username_exists($fromLogin);
+							if (!empty($check)) {
+								$suffix = 2;
+								while (!empty($check)) {
+									$alt_ulogin = $fromLogin . '-' . $suffix;
+									$check = username_exists($alt_ulogin);
+									$suffix++;
+								}
+								$fromLogin = $alt_ulogin;
+							}
+							$name = explode(" ", $fromName);
+							$user_id = register_new_user($fromLogin, $fromEmail);
+							if (is_wp_error($errors)) {
+								continue;
+							}
 						}
 						if (!empty($user_id)) {
 							$anonymous_data = array();
@@ -191,6 +207,9 @@ class ESB_IMAP {
 								do_action('bbp_new_topic', $topic_id, 0, $anonymous_data, $user_id);
 								/** Additional Actions (After Save) ********************************** */
 								do_action('bbp_new_topic_post_extras', $topic_id);
+								if (bbp_is_subscriptions_active()) {
+									bbp_add_user_subscription($user_id, $topic_id);
+								}
 							}
 						}
 					}
