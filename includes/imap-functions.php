@@ -90,6 +90,7 @@ class ESB_IMAP {
 				die('Mailbox is empty');
 			}
 			$string_prefix = get_option('esb_piping_string_prefix');
+			$blacklist = explode(',', get_option('esb_piping_blacklist', ''));
 			foreach ($mailsIds as $key => $message) {
 				$mail = $mailbox->getMail($message);
 				$attached_media = $mail->getAttachments();
@@ -165,6 +166,22 @@ class ESB_IMAP {
 						}
 					}
 				} else {
+					/**
+					 * Ignore Blacklist words for Topic creation.
+					 */
+					if (!empty($blacklist)) {
+						$test_subject = strtolower(sanitize_text_field($subject_full));
+						$isBlackListFound = false;
+						foreach ($blacklist as $word){
+							$word = trim(strtolower($word));
+							if (strpos($test_subject, $word) !== false) {
+								$isBlackListFound = true;
+							}
+						}
+						if ($isBlackListFound) {
+							continue;
+						}
+					}
 					/*
 					 * Create Topic
 					 */

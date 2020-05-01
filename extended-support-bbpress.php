@@ -256,6 +256,7 @@ class BBP_API_MAIN {
 			update_option('esb_piping_string_prefix', sanitize_text_field($_POST['esb_piping_string_prefix']));
 			update_option('esb_piping_create_topic', (isset($_POST['esb_piping_create_topic']) ? 1 : 0));
 			update_option('esb_piping_forum_id', sanitize_text_field($_POST['esb_piping_forum_id']));
+			update_option('esb_piping_blacklist', sanitize_textarea_field($_POST['esb_piping_blacklist']));
 			?>
 			<div id="message" class="updated notice notice-success is-dismissible">
 				<p>Settings updated. </p>
@@ -269,6 +270,7 @@ class BBP_API_MAIN {
 		$string_prefix = get_option('esb_piping_string_prefix');
 		$create_topic = get_option('esb_piping_create_topic');
 		$forum_id = get_option('esb_piping_forum_id');
+		$blacklist = get_option('esb_piping_blacklist');
 		?>
 		<div class="wrap" id="cqpim-settings"><div id="icon-tools" class="icon32"></div>
 			<h1><?php _e('Settings'); ?></h1>
@@ -317,6 +319,8 @@ class BBP_API_MAIN {
 							)
 						);
 						?>
+						<p><?php _e('Blacklist Keywords (comma separated keywords, i.e `first word, second word, third word...`)');?></p>
+						<textarea name="esb_piping_blacklist" id="esb_piping_blacklist" cols="50" rows="5"><?php echo $blacklist;?></textarea>
 					</div>
 					<br />
 					<p class="submit">
