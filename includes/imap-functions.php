@@ -221,6 +221,7 @@ class ESB_IMAP {
 								'post_parent' => $default_forum,
 								'post_title' => $topic_title,
 								'post_content' => $topic_content,
+								'post_status' => 'pending',  
 								), array('forum_id' => $default_forum)
 							);
 							if (!empty($topic_id)) {
